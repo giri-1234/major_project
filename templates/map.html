@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map &mdash; Oil Spill Monitoring System</title>
+
+    <!-- Leaflet CSS must load before JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        /* Map-specific overrides */
+        .page { max-width: 1400px; }
+
+        .map-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .map-wrap {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .map-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .preset-btn {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 5px 11px;
+            border-radius: 5px;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+            color: var(--ink-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .preset-btn:hover { border-color: var(--signal); color: var(--signal); }
+
+        #map {
+            width: 100%;
+            height: 540px;
+            display: block;
+        }
+
+        .map-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 10px 14px;
+            border-top: 1px solid var(--line);
+        }
+
+        .map-tool-btn {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 7px 13px;
+            border-radius: 6px;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .map-tool-btn:hover { border-color: var(--signal); color: var(--signal); }
+        .map-tool-btn.active { border-color: var(--signal); color: var(--signal); background: rgba(55,224,196,0.08); }
+
+        /* Sidebar */
+        .map-sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+        .sidebar-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .sidebar-title {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--signal);
+            margin-bottom: 14px;
+        }
+
+        .roi-placeholder {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--ink-dim);
+            text-align: center;
+            padding: 18px 10px;
+            border: 1.5px dashed var(--line);
+            border-radius: 7px;
+        }
+
+        .roi-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--line);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        .roi-row:last-of-type { border-bottom: none; }
+        .roi-label { color: var(--ink-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .roi-val { color: var(--ink); font-weight: 700; }
+
+        .product-card {
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            background: var(--panel-2);
+            transition: all 0.2s;
+        }
+        .product-card:hover, .product-card.selected { border-color: var(--signal); background: rgba(55,224,196,0.05); }
+        .product-name { font-family: var(--font-mono); font-size: 10px; color: var(--ink); margin-bottom: 4px; word-break: break-all; line-height: 1.4; }
+        .product-meta { display: flex; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10px; color: var(--ink-dim); }
+
+        .dl-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--ink-dim);
+            border-bottom: 1px solid var(--line);
+        }
+        .dl-step:last-child { border-bottom: none; }
+        .dl-icon { width: 16px; text-align: center; flex-shrink: 0; }
+        .dl-step.done  { color: var(--signal); }
+        .dl-step.running { color: var(--amber); }
+        .dl-step.warn  { color: var(--amber); }
+
+        /* Leaflet draw toolbar dark theme */
+        .leaflet-draw-toolbar a {
+            background-color: #17293c !important;
+            border-bottom-color: #24374d !important;
+        }
+        .leaflet-draw-toolbar a:hover { background-color: #1e3347 !important; }
+        .leaflet-touch .leaflet-control-layers,
+        .leaflet-touch .leaflet-bar {
+            border: 1px solid #24374d !important;
+            box-shadow: none !important;
+        }
+
+        @media (max-width: 900px) {
+            .map-layout { grid-template-columns: 1fr; }
+            #map { height: 400px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+            <div class="brand-title">Oil Spill Monitoring System</div>
+            <div class="brand-sub">Sentinel-1 &rarr; Detection &rarr; Alert</div>
+        </div>
+    </div>
+    <div class="nav-links">
+        <a href="{{ url_for('main.index') }}">Analyze</a>
+        <a href="{{ url_for('main.map_view') }}" style="color:var(--signal);border-color:var(--line);">🗺 Map</a>
+        <a href="{{ url_for('main.sentinel1_scan') }}">Scan Incoming</a>
+        <a href="{{ url_for('main.history') }}">History</a>
+    </div>
+</div>
+
+<div class="page">
+    <div class="eyebrow">// Satellite Acquisition</div>
+    <h1 class="page-title">Select Area of Interest</h1>
+    <p class="page-lede">Draw a rectangle on the map, then search for available Sentinel-1 products and download.</p>
+
+    <div class="map-layout">
+
+        <!-- Left: Map -->
+        <div>
+            <div class="map-wrap">
+                <div class="map-presets">
+                    <button class="preset-btn" data-lat="13" data-lng="73" data-zoom="6">Arabian Sea</button>
+                    <button class="preset-btn" data-lat="15" data-lng="88" data-zoom="6">Bay of Bengal</button>
+                    <button class="preset-btn" data-lat="25" data-lng="56" data-zoom="6">Persian Gulf</button>
+                    <button class="preset-btn" data-lat="1"  data-lng="104" data-zoom="6">Strait of Malacca</button>
+                    <button class="preset-btn" data-lat="20" data-lng="38" data-zoom="6">Red Sea</button>
+                </div>
+                <div id="map"></div>
+                <div class="map-toolbar">
+                    <button class="map-tool-btn" id="btn-draw">✏ Draw Rectangle</button>
+                    <button class="map-tool-btn" id="btn-clear">✕ Clear</button>
+                    <button class="map-tool-btn" id="btn-use-view">⊡ Use Current View</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Sidebar -->
+        <div class="map-sidebar">
+
+            <!-- ROI Info -->
+            <div class="sidebar-card" id="roi-panel">
+                <div class="sidebar-title">// Region of Interest</div>
+                <div id="roi-placeholder" class="roi-placeholder">Draw a rectangle on the map to select your area</div>
+                <div id="roi-details" style="display:none">
+                    <div class="roi-row"><span class="roi-label">North</span><span class="roi-val" id="roi-n">—</span></div>
+                    <div class="roi-row"><span class="roi-label">South</span><span class="roi-val" id="roi-s">—</span></div>
+                    <div class="roi-row"><span class="roi-label">East</span><span class="roi-val" id="roi-e">—</span></div>
+                    <div class="roi-row"><span class="roi-label">West</span><span class="roi-val" id="roi-w">—</span></div>
+                    <div class="roi-row"><span class="roi-label">Area</span><span class="roi-val" id="roi-area">—</span></div>
+                    <button class="btn btn-primary" id="btn-search" style="margin-top:14px;">🔍 Search Sentinel-1 Products</button>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="sidebar-card" id="results-panel" style="display:none">
+                <div class="sidebar-title">// Available Products</div>
+                <div id="search-status"></div>
+                <div id="product-list"></div>
+            </div>
+
+            <!-- Download Panel -->
+            <div class="sidebar-card" id="download-panel" style="display:none">
+                <div class="sidebar-title">// Download &amp; Analyze</div>
+                <div id="selected-info"></div>
+                <div id="dl-steps" style="display:none; margin: 12px 0;">
+                    <div class="dl-step" id="s-auth"><span class="dl-icon">○</span><span>Authenticating with Copernicus</span></div>
+                    <div class="dl-step" id="s-search"><span class="dl-icon">○</span><span>Searching products</span></div>
+                    <div class="dl-step" id="s-download"><span class="dl-icon">○</span><span>Downloading satellite data (~474 MB)</span></div>
+                    <div class="dl-step" id="s-extract"><span class="dl-icon">○</span><span>Extracting SAFE archive</span></div>
+                    <div class="dl-step" id="s-preprocess"><span class="dl-icon">○</span><span>Preprocessing SAR data</span></div>
+                </div>
+                <button class="btn btn-primary" id="btn-download" style="margin-top:4px;">🛰 Download &amp; Analyze</button>
+                <div id="dl-result" style="margin-top:12px;"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body>
+</html>

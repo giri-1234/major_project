@@ -1,0 +1,73 @@
+# Environment variables — NEVER commit credentials
+.env
+
+# Satellite data directories (large files)
+datasets/sentinel1/processed_sar/
+datasets/sentinel1/incoming/
+datasets/sentinel1/processed/
+*.tif
+*.tiff
+
+# Downloaded satellite ZIPs and extracted content
+downloads/
+C:/s1_extract/
+
+# Legacy MOSDAC aliases
+datasets/mosdac/incoming/*
+datasets/mosdac/processed/
+datasets/mosdac/processed_sar/
+!datasets/mosdac/incoming/.gitkeep
+!datasets/mosdac/processed/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Model files (large binaries — use Git LFS or store separately)
+models/*.h5
+models/*.keras
+models/*.pkl
+
+# Downloaded satellite data (large files)
+downloads/
+datasets/mosdac/incoming/*
+datasets/mosdac/processed/
+datasets/mosdac/processed_sar/
+!datasets/mosdac/incoming/.gitkeep
+!datasets/mosdac/processed/.gitkeep
+
+# Outputs / logs / reports
+outputs/
+
+# Uploaded images
+static/uploads/*
+!static/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kiro IDE
+.kiro/
+
+# Temp/debug scripts
+probe_result.txt
+test_result.txt

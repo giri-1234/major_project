@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}History &mdash; Oil Spill Monitoring System{% endblock %}
+
+{% block content %}
+    <div class="eyebrow">// Prediction Log</div>
+    <h1 class="page-title">Detection History</h1>
+    <p class="page-lede">
+        Most recent detections first. Also available as JSON at
+        <code>/api/history</code> for external dashboards.
+    </p>
+
+    <div class="panel history-table-wrap">
+        {% if records %}
+        <table class="history">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Confidence</th>
+                    <th>Area %</th>
+                    <th>Area (km²)</th>
+                    <th>Severity</th>
+                    <th>Regions</th>
+                    <th>Time (ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.timestamp }}</td>
+                    <td>{{ r.image_source }}</td>
+                    <td>{{ r.status }}</td>
+                    <td>{{ "%.2f"|format(r.confidence) }}</td>
+                    <td>{{ r.area_pct }}</td>
+                    <td>{{ r.area_km2 if r.area_km2 is defined else "—" }}</td>
+                    <td><span class="sev-pill {{ r.severity }}">{{ r.severity }}</span></td>
+                    <td>{{ r.spill_contours if r.spill_contours is defined else "—" }}</td>
+                    <td>{{ r.processing_time_ms }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No predictions logged yet. Run an analysis to populate this log.</div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Analyze &mdash; Oil Spill Monitoring System{% endblock %}
+
+{% block content %}
+    <div class="eyebrow">// Manual Analysis</div>
+    <h1 class="page-title">Submit a marine image for analysis</h1>
+    <p class="page-lede">
+        Upload a single satellite, aerial, or coastal-camera frame. The system
+        runs it through the full detection pipeline: preprocessing,
+        attention-CNN classification, HSV segmentation, and area estimation.
+    </p>
+
+    <div class="panel upload-panel">
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form action="{{ url_for('main.index') }}" method="POST" enctype="multipart/form-data" id="upload-form">
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('file-field').click()">
+                <div class="icon">&#128225;</div>
+                <div class="label">Select or drop a marine image</div>
+                <div class="hint">JPG &middot; JPEG &middot; PNG &middot; TIFF</div>
+                <input type="file" name="file" id="file-field" class="file-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
+            </div>
+            <div id="file-name-display" class="file-chip"></div>
+
+            <div class="progress-wrap" id="progress-wrap">
+                <div class="progress-label">
+                    <span>Running detection pipeline</span>
+                    <span id="progress-pct">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submit-btn">Run Analysis</button>
+        </form>
+
+        <div class="secondary-action">
+            <a href="{{ url_for('main.sentinel1_scan') }}">or scan the Sentinel-1 incoming folder &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Satellite Acquisition Panel -->
+    <div class="panel upload-panel satellite-panel" style="margin-top: 28px;">
+        <div class="eyebrow" style="padding: 28px 40px 0;">// Sentinel-1 Acquisition</div>
+        <div style="padding: 0 40px 32px;">
+            <p style="color: var(--ink-dim); font-size: 14px; margin: 10px 0 24px; line-height: 1.6;">
+                Fetch the latest Sentinel-1 GRD SAR image over the Arabian Sea directly 
+                from the Copernicus Data Space Ecosystem.
+            </p>
+            <button class="btn btn-secondary" id="acquire-btn" style="width:100%;">
+                🛰 Check Latest Sentinel-1 Image
+            </button>
+            <div id="acquire-status" style="margin-top: 16px; min-height: 24px;"></div>
+        </div>
+    </div>
+{% endblock %}

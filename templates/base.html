@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Marine Oil Spill Monitoring System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+            <div class="brand-title">Oil Spill Monitoring System</div>
+            <div class="brand-sub">Sentinel-1 &rarr; Detection &rarr; Alert</div>
+        </div>
+    </div>
+    <div class="nav-links">
+        <a href="{{ url_for('main.index') }}">Analyze</a>
+        <a href="{{ url_for('main.map_view') }}">🗺 Map</a>
+        <a href="{{ url_for('main.sentinel1_scan') }}">Scan Incoming</a>
+        <a href="{{ url_for('main.history') }}">History</a>
+    </div>
+</div>
+
+<div class="page">
+    {% block content %}{% endblock %}
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Analysis Results &mdash; Oil Spill Monitoring System{% endblock %}
+
+{% block content %}
+    <div class="eyebrow">// Analysis Result</div>
+    <h1 class="page-title">Detection Report</h1>
+    <p class="page-lede">Decision-matrix evaluation for the submitted image.</p>
+
+    <div class="panel status-strip">
+        <div class="status-badge status-{{ color }}">
+            <span class="dot"></span>{{ status }}
+        </div>
+        <div class="timestamp">{{ timestamp }} &middot; {{ processing_time_ms }} ms</div>
+    </div>
+
+    {% if alert %}
+        <div class="alert-banner alert-{{ alert.level }}">
+            &#9888; {{ alert.message }}
+        </div>
+    {% endif %}
+
+    {# 6-metric grid #}
+    <div class="metrics-grid metrics-grid-6">
+        <div class="panel metric-card">
+            <div class="metric-label">AI Confidence</div>
+            <div class="metric-value">{{ "%.2f"|format(score) }}</div>
+        </div>
+        <div class="panel metric-card">
+            <div class="metric-label">Surface Coverage</div>
+            <div class="metric-value">{{ area }}%</div>
+        </div>
+        <div class="panel metric-card">
+            <div class="metric-label">Estimated Area</div>
+            <div class="metric-value">{{ area_km2 }}<span style="font-size:14px;color:var(--ink-dim);"> km²</span></div>
+        </div>
+        <div class="panel metric-card">
+            <div class="metric-label">Severity</div>
+            <div class="metric-value sev-{{ severity }}">{{ severity }}</div>
+        </div>
+        <div class="panel metric-card">
+            <div class="metric-label">Spill Regions</div>
+            <div class="metric-value">{{ spill_contours }}</div>
+        </div>
+        <div class="panel metric-card">
+            <div class="metric-label">Processing Time</div>
+            <div class="metric-value">{{ processing_time_ms }}<span style="font-size:14px;color:var(--ink-dim);">ms</span></div>
+        </div>
+    </div>
+
+    {# Tile analysis info row — only shown when tiling was used #}
+    {% if tile_count and tile_count > 0 %}
+    <div class="panel meta-row">
+        <span>Tiles analyzed: <b>{{ tile_count }}</b></span>
+        <span>Spill regions: <b>{{ spill_contours }}</b></span>
+    </div>
+    {% endif %}
+
+    {# Legacy stitching info row #}
+    {% if tile_count and stitched_img and stitched_img != original_img %}
+    <div class="panel meta-row">
+        <span>Source tiles: <b>{{ tile_count }}</b></span>
+        <span>Stitch method: <b>{{ stitch_method }}</b></span>
+    </div>
+    {% endif %}
+
+    <div class="visual-grid">
+        {% if has_sar_enhancement and sar_views %}
+        <div class="panel visual-box sar-visual-panel">
+            <div class="sar-view-header">
+                <h3 id="sar-view-title">Enhanced RGB</h3>
+                <div class="sar-view-selector" role="tablist" aria-label="SAR view selector">
+                    <button type="button" class="sar-view-btn" data-view="original" role="tab"
+                        data-label="Original SAR"
+                        data-src="{{ url_for('static', filename='uploads/' + sar_views.original) }}">
+                        Original SAR
+                    </button>
+                    <button type="button" class="sar-view-btn" data-view="enhanced_gray" role="tab"
+                        data-label="Enhanced Grayscale"
+                        data-src="{{ url_for('static', filename='uploads/' + sar_views.enhanced_gray) }}">
+                        Enhanced Grayscale
+                    </button>
+                    <button type="button" class="sar-view-btn active" data-view="enhanced_rgb" role="tab"
+                        data-label="Enhanced RGB"
+                        data-src="{{ url_for('static', filename='uploads/' + sar_views.enhanced_rgb) }}">
+                        Enhanced RGB
+                    </button>
+                </div>
+            </div>
+            <img id="sar-display-img"
+                 src="{{ url_for('static', filename='uploads/' + sar_views.enhanced_rgb) }}"
+                 alt="SAR enhancement view">
+            <p class="sar-view-caption">
+                R&nbsp;=&nbsp;intensity &middot; G&nbsp;=&nbsp;gradient &middot; B&nbsp;=&nbsp;texture
+            </p>
+        </div>
+
+        {% if sar_stats %}
+        <div class="panel sar-stats-panel">
+            <div class="sar-stats-header">
+                <span class="sar-stats-title">Image Statistics</span>
+                <span class="sar-stats-subtitle">Enhanced RGB &middot; active view</span>
+            </div>
+            <div class="sar-stats-grid">
+                <div class="sar-stat-item">
+                    <div class="sar-stat-label">Mean</div>
+                    <div class="sar-stat-value">{{ sar_stats.mean }}</div>
+                    <div class="sar-stat-unit">px</div>
+                </div>
+                <div class="sar-stat-item">
+                    <div class="sar-stat-label">Std Dev</div>
+                    <div class="sar-stat-value">{{ sar_stats.std_dev }}</div>
+                    <div class="sar-stat-unit">px</div>
+                </div>
+                <div class="sar-stat-item">
+                    <div class="sar-stat-label">Contrast</div>
+                    <div class="sar-stat-value">{{ sar_stats.contrast }}</div>
+                    <div class="sar-stat-unit">σ/μ</div>
+                </div>
+                <div class="sar-stat-item">
+                    <div class="sar-stat-label">Dyn. Range</div>
+                    <div class="sar-stat-value">{{ sar_stats.dynamic_range }}</div>
+                    <div class="sar-stat-unit">p2–p98</div>
+                </div>
+                <div class="sar-stat-item">
+                    <div class="sar-stat-label">Entropy</div>
+                    <div class="sar-stat-value">{{ sar_stats.entropy }}</div>
+                    <div class="sar-stat-unit">bits</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="panel visual-box">
+            <h3>Input Image</h3>
+            <img src="{{ url_for('static', filename='uploads/' + original_img) }}" alt="Input image">
+        </div>
+        {% endif %}
+
+        {% if stitched_img and stitched_img != original_img %}
+        <div class="panel visual-box">
+            <h3>Stitched Scene</h3>
+            <img src="{{ url_for('static', filename='uploads/' + stitched_img) }}" alt="Stitched scene">
+        </div>
+        {% endif %}
+
+        <div class="panel visual-box">
+            <h3>Segmentation Mask</h3>
+            {% if mask_img %}
+                <img src="{{ url_for('static', filename='uploads/' + mask_img) }}" alt="Detection mask">
+            {% else %}
+                <div class="no-mask-placeholder">No slicks segmented &mdash; clear water</div>
+            {% endif %}
+        </div>
+
+        {% if contour_img %}
+        <div class="panel visual-box">
+            <h3>Contour Analysis</h3>
+            <img src="{{ url_for('static', filename='uploads/' + contour_img) }}" alt="Contour overlay">
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Analyze another image</a>
+        <a href="{{ url_for('main.history') }}" class="btn btn-secondary">View history</a>
+        {% if record_id %}
+        <a href="/api/geojson/{{ record_id }}" class="btn btn-secondary" download>&#11015; Export GeoJSON</a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+{% if has_sar_enhancement and sar_views %}
+<script>
+(function () {
+    var buttons = document.querySelectorAll('.sar-view-btn');
+    var img = document.getElementById('sar-display-img');
+    var title = document.getElementById('sar-view-title');
+    var caption = document.querySelector('.sar-view-caption');
+    if (!buttons.length || !img) return;
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            buttons.forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            img.src = btn.getAttribute('data-src');
+            if (title) title.textContent = btn.getAttribute('data-label');
+            if (caption) {
+                caption.style.display = btn.getAttribute('data-view') === 'enhanced_rgb' ? '' : 'none';
+            }
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}
