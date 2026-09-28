@@ -101,10 +101,16 @@ class PreprocessingConfig:
     gaussian_sigma: float = 0.0
     morph_kernel_size: Tuple[int, int] = (5, 5)
 
-    # HSV thresholds tuned for dark oil slicks on water (kept identical to
-    # the values validated in the original Colab-trained pipeline).
+    # HSV thresholds tuned for dark oil slicks on water.
+    # H = any hue (oil appears in various dark tones including teal/dark-blue)
+    # S <= 255 = allows the full saturation range (accommodates dark saturated plumes
+    #            in shallow/turquoise optical waters as well as SAR composites)
+    # V <= 50  = captures dark pixels characteristic of oil slicks while strictly
+    #            excluding clean dark-blue seawater in deep ocean scenes.
+    # (Adaptive contrast gating in preprocessing dynamically expands V up to 65
+    #  when ambient water is bright turquoise, e.g. tropical shallow waters).
     hsv_lower_oil: Tuple[int, int, int] = (0, 0, 0)
-    hsv_upper_oil: Tuple[int, int, int] = (180, 255, 55)
+    hsv_upper_oil: Tuple[int, int, int] = (180, 255, 50)
 
     # Fraction of image height cropped from top/bottom to remove vignette /
     # sensor-edge noise before counting oil pixels.
@@ -125,7 +131,7 @@ PREPROCESSING = PreprocessingConfig()
 class DetectionThresholds:
     # Primary "confident detection" gate.
     confident_score_min: float = 0.50
-    confident_area_min: float = 1.5
+    confident_area_min: float = 0.40
 
     # Secondary "borderline / verify" gate.
     borderline_score_min: float = 0.40

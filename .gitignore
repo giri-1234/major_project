@@ -1,27 +1,17 @@
-# Environment variables — NEVER commit credentials
+# =============================================================================
+# Git Ignore Configuration — Marine Oil Spill Monitoring System
+# =============================================================================
+
+# 1. Environment variables & Secrets — NEVER commit credentials
 .env
+*.env
+*.pem
+*.key
 
-# Satellite data directories (large files)
-datasets/sentinel1/processed_sar/
-datasets/sentinel1/incoming/
-datasets/sentinel1/processed/
-*.tif
-*.tiff
-
-# Downloaded satellite ZIPs and extracted content
-downloads/
-C:/s1_extract/
-
-# Legacy MOSDAC aliases
-datasets/mosdac/incoming/*
-datasets/mosdac/processed/
-datasets/mosdac/processed_sar/
-!datasets/mosdac/incoming/.gitkeep
-!datasets/mosdac/processed/.gitkeep
-
-# Python
+# 2. Python bytecode & cache
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
 *.pyd
 .Python
@@ -30,44 +20,64 @@ dist/
 build/
 *.egg
 
-# Virtual environments
+# 3. Virtual environments
 venv/
 .venv/
 env/
+ENV/
 
-# Model files (large binaries — use Git LFS or store separately)
-models/*.h5
+# 4. Machine Learning Models
+# Ignore heavy checkpoints or pickle dumps, but track the production model
 models/*.keras
 models/*.pkl
+!models/oil_spill_attention_model.h5
+!models/.gitkeep
 
-# Downloaded satellite data (large files)
-downloads/
+# 5. Satellite Data Directories (Large GeoTIFFs / Raw scenes)
+datasets/sentinel1/incoming/*
+!datasets/sentinel1/incoming/.gitkeep
+datasets/sentinel1/processed/*
+!datasets/sentinel1/processed/.gitkeep
+datasets/sentinel1/processed_sar/*
+!datasets/sentinel1/processed_sar/.gitkeep
 datasets/mosdac/incoming/*
-datasets/mosdac/processed/
-datasets/mosdac/processed_sar/
 !datasets/mosdac/incoming/.gitkeep
+datasets/mosdac/processed/*
 !datasets/mosdac/processed/.gitkeep
+datasets/mosdac/processed_sar/*
+!datasets/mosdac/processed_sar/.gitkeep
+*.tif
+*.tiff
 
-# Outputs / logs / reports
-outputs/
+# 6. Satellite Downloads & Temporary Extraction
+downloads/*
+!downloads/.gitkeep
+C:/s1_extract/
 
-# Uploaded images
+# 7. Runtime Uploads & Prediction Artifacts
 static/uploads/*
 !static/uploads/.gitkeep
 
-# IDE
+# 8. Outputs, Logs & Prediction Reports
+outputs/logs/*
+!outputs/logs/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
+
+# 9. IDE, Editor & OS Files
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Kiro IDE
+ehthumbs.db
 .kiro/
 
-# Temp/debug scripts
+# 10. Scratch / Temp files
+*.log
 probe_result.txt
 test_result.txt
+carto_test.png
+carto_text.txt
+esri_dark.png

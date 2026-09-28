@@ -371,6 +371,13 @@ def process_sar_scene(
         logger.info("SAR enhancement outputs already exist for '%s'; skipping.", stem)
     else:
         raw = _load_raw_array(input_path, max_dim=cfg.max_preview_dim)
+        if max(raw.shape) > cfg.max_preview_dim:
+            scale = cfg.max_preview_dim / max(raw.shape)
+            raw = cv2.resize(
+                raw,
+                (int(raw.shape[1] * scale), int(raw.shape[0] * scale)),
+                interpolation=cv2.INTER_AREA,
+            )
         result = run_sar_enhancement_pipeline(raw)
 
         os.makedirs(output_dir, exist_ok=True)

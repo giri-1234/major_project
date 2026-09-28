@@ -35,6 +35,7 @@ class ProductDownloader:
         token: str,
         download_dir: str,
         extract_dir: str,
+        on_progress=None,
     ) -> str:
         """
         Stream-download a product ZIP, extract it, and return the ``.SAFE``
@@ -50,6 +51,8 @@ class ProductDownloader:
             Directory in which the ZIP file will be written.
         extract_dir : str
             Directory to which the ZIP will be extracted.
+        on_progress : callable, optional
+            Callable with signature ``(downloaded_bytes, total_bytes, percent)``.
 
         Returns
         -------
@@ -83,10 +86,34 @@ class ProductDownloader:
                 f"for product UUID '{product_id}'."
             )
 
+        total_bytes = 0
+        try:
+            total_bytes = int(response.headers.get("Content-Length", 0))
+        except (ValueError, TypeError):
+            total_bytes = 0
+
+        downloaded_bytes = 0
+        last_reported_pct = -1
+
         with open(zip_path, "wb") as fh:
             for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
                 if chunk:
                     fh.write(chunk)
+                    downloaded_bytes += len(chunk)
+                    if total_bytes > 0:
+                        pct = round((downloaded_bytes / total_bytes) * 100, 1)
+                        if int(pct) != last_reported_pct:
+                            last_reported_pct = int(pct)
+                            if on_progress:
+                                try:
+                                    on_progress(downloaded_bytes, total_bytes, pct)
+                                except Exception:
+                                    pass
+                    elif on_progress and (downloaded_bytes % (2 * 1024 * 1024) == 0):
+                        try:
+                            on_progress(downloaded_bytes, 0, 0.0)
+                        except Exception:
+                            pass
 
         # --- Extract (entry-by-entry to handle Windows path issues) ---
         self._safe_extract(zip_path, extract_dir)

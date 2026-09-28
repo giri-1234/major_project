@@ -241,32 +241,40 @@ class ProductSearcher:
         end_dt: datetime,
     ) -> str:
         """
-        Build an OData $filter string for Sentinel-1 IW GRD products
-        intersecting a bounding box within a date range.
+        Build an OData $filter string for Sentinel-1 GRD products (both IW and
+        EW modes) intersecting a bounding box within a date range.
 
-        Uses contains(Name,'GRDH') OR contains(Name,'GRDM') to filter
-        to GRD products server-side, avoiding the any() lambda syntax
-        which CDSE silently ignores.
+        Automatically applies a buffer if the ROI is smaller than 0.4 degrees
+        (~45 km) to ensure adjacent orbital swaths are not missed.
         """
         lon_min, lat_min, lon_max, lat_max = bbox
+
+        # Auto-buffer small bounding boxes to catch adjacent satellite swaths
+        if abs(lon_max - lon_min) < 0.4 or abs(lat_max - lat_min) < 0.4:
+            buf = 0.35
+            lon_min -= buf
+            lat_min -= buf
+            lon_max += buf
+            lat_max += buf
 
         # Closed WKT ring: SW → SE → NE → NW → SW
         wkt = (
             f"POLYGON(("
-            f"{lon_min} {lat_min},"
-            f"{lon_max} {lat_min},"
-            f"{lon_max} {lat_max},"
-            f"{lon_min} {lat_max},"
-            f"{lon_min} {lat_min}"
+            f"{lon_min:.4f} {lat_min:.4f},"
+            f"{lon_max:.4f} {lat_min:.4f},"
+            f"{lon_max:.4f} {lat_max:.4f},"
+            f"{lon_min:.4f} {lat_max:.4f},"
+            f"{lon_min:.4f} {lat_min:.4f}"
             f"))"
         )
 
         start_str = start_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
         end_str   = end_dt.strftime(  "%Y-%m-%dT%H:%M:%S.000Z")
 
+        # Matches both IW and EW GRD products (Interferometric Wide & Extra-Wide)
         return (
             "Collection/Name eq 'SENTINEL-1' "
-            "and (contains(Name,'GRDH') or contains(Name,'GRDM')) "
+            "and (contains(Name,'GRDH') or contains(Name,'GRDM') or contains(Name,'_EW_') or contains(Name,'_IW_')) "
             f"and ContentDate/Start gt {start_str} "
             f"and ContentDate/Start lt {end_str} "
             f"and OData.CSC.Intersects(area=geography'SRID=4326;{wkt}')"
@@ -275,10 +283,8 @@ class ProductSearcher:
     @staticmethod
     def _odata_entry_to_product(entry: dict) -> dict:
         """
-        Normalise a CDSE OData product entry into the flat dict the UI expects.
-
-        UI contract (unchanged from STAC version):
-          id, name, date, orbit, platform, mode, size_mb
+        Normalise a CDSE OData product entry into the flat dict the UI expects,
+        including orbital swath footprint geometry if present.
         """
         name = entry.get("Name", "")
 
@@ -302,14 +308,18 @@ class ProductSearcher:
         size_bytes = entry.get("ContentLength", 0) or 0
         size_mb    = f"~{round(size_bytes / 1_048_576)}" if size_bytes else "~474"
 
+        # Extract satellite footprint polygon (GeoJSON geometry dict)
+        footprint = entry.get("GeoFootprint")
+
         return {
-            "id":       name,          # product name used as ID for download
-            "name":     name,
-            "date":     date_str,
-            "orbit":    orbit or "—",
-            "platform": "SENTINEL-1",
-            "mode":     mode,
-            "size_mb":  size_mb,
+            "id":        name,          # product name used as ID for download
+            "name":      name,
+            "date":      date_str,
+            "orbit":     orbit or "—",
+            "platform":  "SENTINEL-1",
+            "mode":      mode,
+            "size_mb":   size_mb,
+            "footprint": footprint,
         }
 
     @staticmethod

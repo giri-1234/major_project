@@ -142,9 +142,9 @@ def calculate_area_km2(area_pct: float, image_source: str = "") -> float:
     """
     Estimate real-world oil spill area in km².
 
-    For Sentinel-1 SAR (10 m pixel spacing, typical IW scene ~250 km × 170 km):
-    Scene area ≈ 42,500 km².  Use this as the base for satellite images.
-    For uploaded RGB images: assume a typical coastal survey area of ~10 km².
+    - Full Sentinel-1 Swath (e.g. raw Copernicus .SAFE archive): ~42,500 km² (250 km × 170 km).
+    - Tactical SAR Sector / Sub-scene Crop (e.g. ROI patrol sector, ~16 km × 16 km): ~250.0 km².
+    - Manual Coastal / Drone Uploads (local survey): ~10.0 km².
 
     Parameters
     ----------
@@ -158,10 +158,13 @@ def calculate_area_km2(area_pct: float, image_source: str = "") -> float:
     float
         Area in km², rounded to 2 decimal places.
     """
-    if "sentinel1" in image_source.lower():
-        scene_area_km2 = 42_500.0  # Sentinel-1 IW typical scene
+    src = image_source.lower()
+    if "full" in src or "raw" in src or "swath" in src:
+        scene_area_km2 = 42_500.0  # Full raw Sentinel-1 IW orbital swath
+    elif "sentinel1" in src or "sar" in src:
+        scene_area_km2 = 250.0     # Tactical sub-scene / patrol sector (~16 km × 16 km)
     else:
-        scene_area_km2 = 10.0  # Manual-upload assumption (coastal survey)
+        scene_area_km2 = 10.0      # Coastal drone / optical survey
     return round((area_pct / 100.0) * scene_area_km2, 2)
 
 

@@ -146,17 +146,138 @@
         .dl-step.running { color: var(--amber); }
         .dl-step.warn  { color: var(--amber); }
 
-        /* Leaflet draw toolbar dark theme */
+        @keyframes dl-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dl-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(245, 158, 11, 0.25);
+            border-top-color: var(--amber);
+            border-radius: 50%;
+            animation: dl-spin 0.75s linear infinite;
+            vertical-align: middle;
+        }
+        .dl-progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            margin-top: 4px;
+        }
+        .dl-progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #37e0c4);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Leaflet draw toolbar & controls dark theme */
         .leaflet-draw-toolbar a {
             background-color: #17293c !important;
             border-bottom-color: #24374d !important;
+            color: var(--signal) !important;
         }
         .leaflet-draw-toolbar a:hover { background-color: #1e3347 !important; }
-        .leaflet-touch .leaflet-control-layers,
         .leaflet-touch .leaflet-bar {
             border: 1px solid #24374d !important;
             box-shadow: none !important;
+            background: #17293c !important;
         }
+        .leaflet-touch .leaflet-bar a {
+            background-color: #17293c !important;
+            color: #e2e8f0 !important;
+            border-bottom-color: #24374d !important;
+        }
+
+        /* Leaflet Layer Switcher Dark Theme */
+        .leaflet-control-layers {
+            background: #17293c !important;
+            color: #e2e8f0 !important;
+            border: 1px solid #24374d !important;
+            border-radius: 8px !important;
+            font-family: var(--font-mono) !important;
+            font-size: 11px !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+        }
+        .leaflet-control-layers-toggle {
+            background-color: #17293c !important;
+            border-radius: 6px !important;
+        }
+        .leaflet-control-layers-expanded {
+            padding: 10px 14px !important;
+        }
+        .leaflet-control-layers label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+            cursor: pointer;
+            color: #cbd5e1;
+        }
+
+        /* Dark Glassmorphic Popups */
+        .leaflet-popup-content-wrapper {
+            background: #17293c !important;
+            color: #e2e8f0 !important;
+            border: 1px solid #24374d !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7) !important;
+            padding: 2px !important;
+        }
+        .leaflet-popup-tip {
+            background: #17293c !important;
+            border: 1px solid #24374d !important;
+        }
+        .leaflet-popup-content {
+            margin: 10px 12px !important;
+            font-family: var(--font-mono) !important;
+            line-height: 1.5;
+        }
+        .incident-popup h4 {
+            margin: 0 0 6px;
+            font-size: 12px;
+            color: var(--signal);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .incident-badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .badge-HIGH { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid #ef4444; }
+        .badge-MEDIUM { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .badge-LOW { background: rgba(55,224,196,0.2); color: #37e0c4; border: 1px solid #37e0c4; }
+        .badge-CLEAR { background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; }
+        .incident-thumb {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin: 6px 0;
+            border: 1px solid var(--line);
+            display: block;
+        }
+        .incident-link {
+            display: inline-block;
+            margin-top: 6px;
+            color: var(--signal);
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .incident-link:hover { text-decoration: underline; }
 
         @media (max-width: 900px) {
             .map-layout { grid-template-columns: 1fr; }
@@ -183,9 +304,9 @@
 </div>
 
 <div class="page">
-    <div class="eyebrow">// Satellite Acquisition</div>
-    <h1 class="page-title">Select Area of Interest</h1>
-    <p class="page-lede">Draw a rectangle on the map, then search for available Sentinel-1 products and download.</p>
+    <div class="eyebrow">// Satellite Surveillance GIS</div>
+    <h1 class="page-title">Maritime Area of Interest &amp; Satellite Catalog</h1>
+    <p class="page-lede">Select a high-traffic maritime sector or draw a bounding box to discover Sentinel-1 orbital passes and run oil spill detection.</p>
 
     <div class="map-layout">
 
@@ -193,17 +314,21 @@
         <div>
             <div class="map-wrap">
                 <div class="map-presets">
-                    <button class="preset-btn" data-lat="13" data-lng="73" data-zoom="6">Arabian Sea</button>
-                    <button class="preset-btn" data-lat="15" data-lng="88" data-zoom="6">Bay of Bengal</button>
-                    <button class="preset-btn" data-lat="25" data-lng="56" data-zoom="6">Persian Gulf</button>
-                    <button class="preset-btn" data-lat="1"  data-lng="104" data-zoom="6">Strait of Malacca</button>
-                    <button class="preset-btn" data-lat="20" data-lng="38" data-zoom="6">Red Sea</button>
+                    <button class="preset-btn" data-lat="19.4" data-lng="71.8" data-zoom="7" data-bbox="[69.8,18.0,73.0,20.8]">Arabian Sea (Mumbai High)</button>
+                    <button class="preset-btn" data-lat="22.5" data-lng="69.5" data-zoom="8" data-bbox="[68.5,21.8,70.8,23.2]">Gulf of Kutch</button>
+                    <button class="preset-btn" data-lat="26.3" data-lng="56.3" data-zoom="8" data-bbox="[55.0,25.2,57.5,27.2]">Persian Gulf (Hormuz)</button>
+                    <button class="preset-btn" data-lat="2.5"  data-lng="101.8" data-zoom="7" data-bbox="[100.0,1.2,103.5,3.8]">Strait of Malacca</button>
+                    <button class="preset-btn" data-lat="17.2" data-lng="84.0" data-zoom="7" data-bbox="[82.0,15.5,86.0,19.0]">Bay of Bengal</button>
                 </div>
                 <div id="map"></div>
                 <div class="map-toolbar">
                     <button class="map-tool-btn" id="btn-draw">✏ Draw Rectangle</button>
                     <button class="map-tool-btn" id="btn-clear">✕ Clear</button>
                     <button class="map-tool-btn" id="btn-use-view">⊡ Use Current View</button>
+                    <label class="map-tool-toggle" style="display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:var(--ink);cursor:pointer;margin-left:auto;">
+                        <input type="checkbox" id="toggle-incidents" style="accent-color:var(--signal);">
+                        <span>📍 Past Incidents (<span id="incident-count">0</span>)</span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -214,37 +339,66 @@
             <!-- ROI Info -->
             <div class="sidebar-card" id="roi-panel">
                 <div class="sidebar-title">// Region of Interest</div>
-                <div id="roi-placeholder" class="roi-placeholder">Draw a rectangle on the map to select your area</div>
+                <div id="roi-placeholder" class="roi-placeholder">Select a preset above or draw a rectangle on the map</div>
                 <div id="roi-details" style="display:none">
                     <div class="roi-row"><span class="roi-label">North</span><span class="roi-val" id="roi-n">—</span></div>
                     <div class="roi-row"><span class="roi-label">South</span><span class="roi-val" id="roi-s">—</span></div>
                     <div class="roi-row"><span class="roi-label">East</span><span class="roi-val" id="roi-e">—</span></div>
                     <div class="roi-row"><span class="roi-label">West</span><span class="roi-val" id="roi-w">—</span></div>
                     <div class="roi-row"><span class="roi-label">Area</span><span class="roi-val" id="roi-area">—</span></div>
-                    <button class="btn btn-primary" id="btn-search" style="margin-top:14px;">🔍 Search Sentinel-1 Products</button>
+                    <button class="btn btn-primary" id="btn-search" style="margin-top:14px;width:100%;">🔍 Search Sentinel-1 Passes</button>
                 </div>
             </div>
 
             <!-- Search Results -->
             <div class="sidebar-card" id="results-panel" style="display:none">
-                <div class="sidebar-title">// Available Products</div>
+                <div class="sidebar-title">// Available Sentinel-1 Passes</div>
                 <div id="search-status"></div>
                 <div id="product-list"></div>
             </div>
 
-            <!-- Download Panel -->
+            <!-- Ingestion & Analysis Panel -->
             <div class="sidebar-card" id="download-panel" style="display:none">
-                <div class="sidebar-title">// Download &amp; Analyze</div>
+                <div class="sidebar-title">// Ingestion &amp; Analysis</div>
                 <div id="selected-info"></div>
-                <div id="dl-steps" style="display:none; margin: 12px 0;">
-                    <div class="dl-step" id="s-auth"><span class="dl-icon">○</span><span>Authenticating with Copernicus</span></div>
-                    <div class="dl-step" id="s-search"><span class="dl-icon">○</span><span>Searching products</span></div>
-                    <div class="dl-step" id="s-download"><span class="dl-icon">○</span><span>Downloading satellite data (~474 MB)</span></div>
-                    <div class="dl-step" id="s-extract"><span class="dl-icon">○</span><span>Extracting SAFE archive</span></div>
-                    <div class="dl-step" id="s-preprocess"><span class="dl-icon">○</span><span>Preprocessing SAR data</span></div>
+
+                <!-- ⚡ Fast 3-second Demo Action -->
+                <div style="background:rgba(55,224,196,0.06);border:1px solid rgba(55,224,196,0.3);border-radius:8px;padding:12px;margin-bottom:14px;">
+                    <div style="font-family:var(--font-mono);font-size:11px;color:var(--signal);font-weight:700;margin-bottom:4px;">⚡ Rapid Emergency Pipeline</div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-dim);line-height:1.4;margin-bottom:10px;">
+                        Instant AI analysis on verified Sentinel-1 SAR imagery (~3s, zero download lag).
+                    </div>
+                    <button class="btn btn-primary" id="btn-demo-analyze" style="width:100%;margin-top:0;">⚡ Run Instant Detection (3s Demo)</button>
+                    <div id="demo-status" style="margin-top:8px;font-family:var(--font-mono);font-size:11px;"></div>
                 </div>
-                <button class="btn btn-primary" id="btn-download" style="margin-top:4px;">🛰 Download &amp; Analyze</button>
-                <div id="dl-result" style="margin-top:12px;"></div>
+
+                <!-- 🌐 Background Raw Downloader -->
+                <div style="border-top:1px solid var(--line);padding-top:12px;">
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-dim);margin-bottom:8px;">
+                        Full raw Sentinel-1 archive from Copernicus (~474 MB):
+                    </div>
+                    <div id="dl-steps" style="display:none; margin: 12px 0;">
+                        <div class="dl-step" id="s-auth"><span class="dl-icon">○</span><span>Authenticating with Copernicus</span></div>
+                        <div class="dl-step" id="s-search"><span class="dl-icon">○</span><span>Searching products</span></div>
+                        <div class="dl-step" id="s-download">
+                            <span class="dl-icon">○</span>
+                            <span id="s-download-text">Downloading satellite data (~474 MB)</span>
+                        </div>
+                        <div id="dl-progress-wrap" style="display:none; margin: 4px 0 10px 26px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-family:var(--font-mono); font-size:10px; color:var(--amber); margin-bottom:4px;">
+                                <span id="dl-pct-label" style="font-weight:700;">0%</span>
+                                <span id="dl-bytes-label" style="color:var(--ink-dim);">0 MB / ~474 MB</span>
+                            </div>
+                            <div class="dl-progress-bar-bg">
+                                <div id="dl-progress-fill" class="dl-progress-bar-fill"></div>
+                            </div>
+                        </div>
+                        <div class="dl-step" id="s-extract"><span class="dl-icon">○</span><span>Extracting SAFE archive</span></div>
+                        <div class="dl-step" id="s-preprocess"><span class="dl-icon">○</span><span>Preprocessing SAR data</span></div>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-download" style="width:100%;font-size:11px;">🌐 Download Full Raw Scene (Background)</button>
+                    <div id="dl-result" style="margin-top:10px;"></div>
+                </div>
             </div>
 
         </div>

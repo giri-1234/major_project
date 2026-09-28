@@ -23,6 +23,7 @@
                     <th>Severity</th>
                     <th>Regions</th>
                     <th>Time (ms)</th>
+                    <th>Report</th>
                 </tr>
             </thead>
             <tbody>
@@ -37,6 +38,13 @@
                     <td><span class="sev-pill {{ r.severity }}">{{ r.severity }}</span></td>
                     <td>{{ r.spill_contours if r.spill_contours is defined else "—" }}</td>
                     <td>{{ r.processing_time_ms }}</td>
+                    <td>
+                        {% if r.record_id %}
+                        <a href="/results/{{ r.record_id }}" class="btn btn-secondary" style="padding: 3px 10px; font-size: 11px; white-space: nowrap;">View &rarr;</a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

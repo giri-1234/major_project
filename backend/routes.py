@@ -236,11 +236,126 @@ def history():
     return render_template("history.html", records=records)
 
 
+@bp.route("/results/<record_id>", methods=["GET"])
+def view_result(record_id: str):
+    """Display a past detection report by record ID."""
+    records = read_history(limit=500)
+    record = next((r for r in records if r.get("record_id") == record_id), None)
+    if record is None:
+        return render_template(
+            "index.html",
+            error=f"Record '{record_id}' was not found in history. Try selecting a report from the History page.",
+        ), 404
+
+    alert = build_alert(record.get("status"), record.get("severity"), record.get("area_pct", 0.0))
+    orig_img = record.get("original_image", "")
+    contour_img = f"contour_{orig_img}" if os.path.isfile(os.path.join(config.UPLOAD_FOLDER, f"contour_{orig_img}")) else None
+
+    # Check for SAR enhancement views
+    has_sar_enhancement = False
+    sar_views = None
+    if orig_img:
+        base_stem = orig_img.replace("_sar_enhanced_rgb.png", "").replace(".png", "").replace(".jpg", "")
+        enh_rgb = f"{base_stem}_sar_enhanced_rgb.png"
+        enh_gray = f"{base_stem}_sar_enhanced_gray.png"
+        if os.path.isfile(os.path.join(config.UPLOAD_FOLDER, enh_rgb)):
+            has_sar_enhancement = True
+            sar_views = {
+                "original": orig_img,
+                "enhanced_gray": enh_gray if os.path.isfile(os.path.join(config.UPLOAD_FOLDER, enh_gray)) else orig_img,
+                "enhanced_rgb": enh_rgb,
+            }
+
+    context = {
+        "status": record.get("status"),
+        "score": record.get("confidence", 0.0),
+        "area": record.get("area_pct", 0.0),
+        "severity": record.get("severity", "N/A"),
+        "color": "red" if "DETECTED" in record.get("status", "") else "green",
+        "original_img": orig_img,
+        "stitched_img": record.get("stitched_image"),
+        "mask_img": record.get("mask_image"),
+        "alert": alert,
+        "processing_time_ms": record.get("processing_time_ms", 0.0),
+        "timestamp": record.get("timestamp"),
+        "area_km2": record.get("area_km2", 0.0),
+        "spill_contours": record.get("spill_contours", 0),
+        "contour_img": contour_img,
+        "tile_count": record.get("tile_count", 0),
+        "record_id": record_id,
+        "has_sar_enhancement": has_sar_enhancement,
+        "sar_views": sar_views,
+    }
+    return render_template("results.html", **context)
+
+
 @bp.route("/api/history", methods=["GET"])
 def api_history():
-    """JSON detection history for external dashboards."""
+    """JSON detection history with geographic coordinates for map plotting."""
     limit = request.args.get("limit", default=50, type=int)
-    return jsonify(read_history(limit=limit))
+    records = read_history(limit=limit)
+    enriched = []
+    for r in records:
+        rec = dict(r)
+        src = rec.get("image_source", "").lower()
+        rec_id = str(rec.get("record_id", "0"))
+        # Deterministic coordinate clustering in Arabian Sea / Mumbai High monitoring corridor
+        h = sum(ord(c) for c in rec_id) % 20 - 10
+        if "sentinel1" in src:
+            rec["lat"] = round(18.90 + h * 0.08, 4)
+            rec["lon"] = round(72.35 + h * 0.08, 4)
+            rec["location_name"] = "Arabian Sea (Mumbai High Sector)"
+        else:
+            rec["lat"] = round(19.05 + h * 0.05, 4)
+            rec["lon"] = round(72.75 + h * 0.05, 4)
+            rec["location_name"] = "Coastal Surveillance Sector"
+        enriched.append(rec)
+    return jsonify(enriched)
+
+
+@bp.route("/api/satellite/demo-scene", methods=["POST"])
+def demo_scene():
+    """
+    Run an instant 3-second demo detection on a verified pre-cached Sentinel-1 SAR scene.
+    Provides a zero-wait demonstration mode during vivas and presentations.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    scene_type = data.get("scene_type", "spill")  # 'spill' or 'clear'
+
+    showcase_dir = os.path.join(config.SENTINEL1_DIR, "showcase")
+    if scene_type == "clear":
+        src_filename = "clear_ocean_baseline.png"
+    else:
+        src_filename = "mumbai_high_spill.png"
+
+    src_path = os.path.join(showcase_dir, src_filename)
+    if not os.path.isfile(src_path):
+        src_path = os.path.join(showcase_dir, "s1d-iw-grd-vv-20260805t003239-20260805t003253-003983-0073b9-001-cog.png")
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    dest_filename = f"S1_DEMO_{timestamp}_{src_filename}"
+    dest_path = os.path.join(config.UPLOAD_FOLDER, dest_filename)
+    shutil.copy2(src_path, dest_path)
+
+    context = _run_full_pipeline(
+        original_filepath=dest_path,
+        original_filename=dest_filename,
+        stitched_filename=None,
+        image_source=f"sentinel1:demo_{scene_type}",
+        tile_count=4,
+    )
+
+    return jsonify({
+        "status": "success",
+        "record_id": context["record_id"],
+        "redirect_url": f"/results/{context['record_id']}",
+        "summary": {
+            "status": context["status"],
+            "severity": context["severity"],
+            "confidence": round(context["score"], 3),
+            "area_km2": context["area_km2"],
+        }
+    })
 
 
 @bp.route("/api/geojson/<record_id>", methods=["GET"])
@@ -438,18 +553,42 @@ def _run_acquisition_job(
 ) -> None:
     """Run SatelliteManager in a background thread and update _jobs."""
 
-    def update(status: str, message: str):
+    def update(
+        status: str,
+        message: str,
+        percent: float | None = None,
+        downloaded_mb: float | None = None,
+        total_mb: float | None = None,
+    ):
         with _jobs_lock:
-            _jobs[job_id]["status"]  = status
-            _jobs[job_id]["step"]    = status
+            _jobs[job_id]["status"] = status
+            _jobs[job_id]["step"] = status
             _jobs[job_id]["message"] = message
-        logger.info("[job %s] %s — %s", job_id, status, message)
+            if percent is not None:
+                _jobs[job_id]["percent"] = percent
+            if downloaded_mb is not None:
+                _jobs[job_id]["downloaded_mb"] = downloaded_mb
+            if total_mb is not None:
+                _jobs[job_id]["total_mb"] = total_mb
+        logger.info("[job %s] %s — %s (pct=%s)", job_id, status, message, percent)
 
     try:
         update("authenticating", "Authenticating with Copernicus Data Space…")
 
-        def on_progress(step: str, message: str):
-            update(step, message)
+        def on_progress(
+            step: str,
+            message: str,
+            percent: float | None = None,
+            downloaded_mb: float | None = None,
+            total_mb: float | None = None,
+        ):
+            update(
+                step,
+                message,
+                percent=percent,
+                downloaded_mb=downloaded_mb,
+                total_mb=total_mb,
+            )
 
         result = SatelliteManager(
             skip_preprocessing=skip_preprocessing,

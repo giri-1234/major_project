@@ -156,8 +156,10 @@ class OilSpillPredictor:
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        # Filter small noise contours (< 50 pixels area)
-        significant = [c for c in contours if cv2.contourArea(c) > 50]
+        # Filter small noise contours (scaled by resolution)
+        h, w = mask.shape[:2]
+        min_area = 25 if min(h, w) < 400 else 50
+        significant = [c for c in contours if cv2.contourArea(c) > min_area]
 
         # Draw filled semi-transparent overlay
         oil_overlay = overlay.copy()
@@ -175,10 +177,12 @@ class OilSpillPredictor:
     @staticmethod
     def _count_contours(mask: np.ndarray) -> int:
         """Return the number of significant oil-spill regions in a binary mask."""
+        h, w = mask.shape[:2]
+        min_area = 25 if min(h, w) < 400 else 50
         contours, _ = cv2.findContours(
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
-        return len([c for c in contours if cv2.contourArea(c) > 50])
+        return len([c for c in contours if cv2.contourArea(c) > min_area])
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -249,13 +253,20 @@ class OilSpillPredictor:
 
         if status != "NO OIL SPILL (Look-alike/Clear Water)":
             mask_filename = self._save_mask(filepath, mask)
-
-        # Always generate the contour overlay (shows nothing when no spill)
-        try:
-            contour_filename = self._save_contour_overlay(filepath, image, mask)
             spill_contours = self._count_contours(mask)
-        except Exception:  # noqa: BLE001
-            logger.warning("Could not save contour overlay for %s", filepath)
+            try:
+                contour_filename = self._save_contour_overlay(filepath, image, mask)
+            except Exception:  # noqa: BLE001
+                logger.warning("Could not save contour overlay for %s", filepath)
+        else:
+            # When decision is NO OIL SPILL, do not report false noise contours or draw red/cyan spill markings
+            spill_contours = 0
+            try:
+                contour_filename = self._save_contour_overlay(
+                    filepath, image, np.zeros_like(mask)
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning("Could not save contour overlay for %s", filepath)
 
         area_km2 = calculate_area_km2(reported_area, image_source)
 

@@ -87,11 +87,29 @@ class SatelliteManager:
         self._searcher = ProductSearcher()
         self._downloader = ProductDownloader()
 
-    def _progress(self, step: str, message: str) -> None:
+    def _progress(
+        self,
+        step: str,
+        message: str,
+        percent: float | None = None,
+        downloaded_mb: float | None = None,
+        total_mb: float | None = None,
+    ) -> None:
         """Emit a progress update if a callback is registered."""
         if self._on_progress:
             try:
-                self._on_progress(step, message)
+                self._on_progress(
+                    step,
+                    message,
+                    percent=percent,
+                    downloaded_mb=downloaded_mb,
+                    total_mb=total_mb,
+                )
+            except TypeError:
+                try:
+                    self._on_progress(step, message)
+                except Exception:
+                    pass
             except Exception:  # noqa: BLE001
                 pass
 
@@ -145,11 +163,38 @@ class SatelliteManager:
         # 4. Download and extract
         logger.info("Step 4/6 — Downloading and extracting product '%s'.", product_id)
         self._progress("downloading", f"Downloading {product_name[:40]} (this takes 10–30 min)…")
+
+        product_size_mb = 0
+        if isinstance(product_info, dict) and product_info.get("size_mb"):
+            try:
+                product_size_mb = float(product_info["size_mb"])
+            except (ValueError, TypeError):
+                pass
+
+        def _dl_cb(dl_bytes: int, tot_bytes: int, pct: float):
+            dl_mb = round(dl_bytes / (1024 * 1024), 1)
+            tot_mb = (
+                round(tot_bytes / (1024 * 1024), 1)
+                if tot_bytes > 0
+                else (product_size_mb or 474.0)
+            )
+            if tot_bytes == 0 and tot_mb > 0:
+                pct = min(99.0, round((dl_mb / tot_mb) * 100, 1))
+            msg = f"Downloading satellite data ({pct}% of ~{tot_mb} MB)"
+            self._progress(
+                "downloading",
+                msg,
+                percent=pct,
+                downloaded_mb=dl_mb,
+                total_mb=tot_mb,
+            )
+
         safe_path = self._downloader.download_and_extract(
             product_id=product_id,
             token=token,
             download_dir=self._download_dir,
             extract_dir=self._extract_dir,
+            on_progress=_dl_cb,
         )
         logger.info("Extracted .SAFE folder: %s", safe_path)
 
